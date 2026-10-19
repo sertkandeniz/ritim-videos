@@ -1,0 +1,121 @@
+# Terminology table: the translator must use these renderings.
+# status: approved = given by Ritim; review = suggested, to be confirmed by a native-speaking auditor.
+# Keys are ISO 639-1 codes; `tr` lists the Turkish forms that trigger the term (lower-case match on stems).
+terms:
+  - id: training
+    status: approved
+    tr: [eğitim]
+    en: training
+    de: Schulung
+    fr: formation
+    es: formación
+    ja: 研修
+    zh: 培训
+  - id: internal_auditor
+    status: approved
+    tr: [iç denetçi, iç tetkikçi]
+    en: internal auditor
+    de: interner Auditor
+    fr: auditeur interne
+    es: auditor interno
+    ja: 内部監査員
+    zh: 内审员
+  - id: lead_auditor
+    status: approved
+    tr: [baş denetçi, lider denetçi, baş tetkikçi]
+    en: lead auditor
+    de: Lead Auditor
+    fr: auditeur principal
+    es: auditor líder
+    ja: 主任審査員
+    zh: 审核组长
+  - id: process_audit
+    status: approved
+    tr: [proses denetimi, proses tetkiki, süreç denetimi]
+    en: process audit
+    de: Prozessaudit
+    fr: audit de processus
+    es: auditoría de procesos
+    ja: プロセス監査
+    zh: 过程审核
+  - id: customer_specific_requirements
+    status: approved
+    tr: [müşteriye özel gereklilik, müşteriye özgü gereklilik, müşteri özel şart]
+    en: customer-specific requirements
+    de: kundenspezifische Anforderungen
+    fr: exigences spécifiques du client
+    es: requisitos específicos del cliente
+    ja: 顧客固有要求事項
+    zh: 顾客特殊要求
+  - id: quality_management_system
+    status: approved
+    tr: [kalite yönetim sistemi]
+    en: quality management system
+    de: Qualitätsmanagementsystem
+    fr: système de management de la qualité
+    es: sistema de gestión de la calidad
+    ja: 品質マネジメントシステム
+    zh: 质量管理体系
+  - id: root_cause
+    status: review
+    tr: [kök neden]
+    en: root cause
+    de: Grundursache
+    fr: cause racine
+    es: causa raíz
+    ja: 根本原因
+    zh: 根本原因
+  - id: containment_action
+    status: review
+    tr: [geçici önlem, acil önlem, kontrol altına alma]
+    en: containment action
+    de: Sofortmaßnahme
+    fr: action de confinement
+    es: acción de contención
+    ja: 封じ込め処置
+    zh: 遏制措施
+  - id: corrective_action
+    status: review
+    tr: [düzeltici faaliyet, düzeltici önlem]
+    en: corrective action
+    de: Korrekturmaßnahme
+    fr: action corrective
+    es: acción correctiva
+    ja: 是正処置
+    zh: 纠正措施
+  - id: preventive_action
+    status: review
+    tr: [önleyici faaliyet, önleyici önlem]
+    en: preventive action
+    de: Vorbeugungsmaßnahme
+    fr: action préventive
+    es: acción preventiva
+    ja: 予防処置
+    zh: 预防措施
+  - id: nonconformity
+    status: review
+    tr: [uygunsuzluk]
+    en: nonconformity
+    de: Nichtkonformität
+    fr: non-conformité
+    es: no conformidad
+    ja: 不適合
+    zh: 不符合
+  - id: supplier
+    status: review
+    tr: [tedarikçi]
+    en: supplier
+    de: Lieferant
+    fr: fournisseur
+    es: proveedor
+    ja: サプライヤー
+    zh: 供应商
+  - id: problem_solving
+    status: review
+    tr: [problem çözme]
+    en: problem solving
+    de: Problemlösung
+    fr: résolution de problèmes
+    es: resolución de problemas
+    ja: 問題解決
+    zh: 问题解决

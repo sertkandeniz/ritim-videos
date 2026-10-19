@@ -1,0 +1,191 @@
+# Ritim Online course translation pipeline: the one config file.
+# Secrets are never stored here: ANTHROPIC_API_KEY, ELEVENLABS_API_KEY and AWS credentials
+# come from the environment (see .env.example). Paths may use ${ENV_VAR} and ~.
+
+paths:
+  # On g6e.xlarge: instance-store NVMe is mounted at /opt/dlami/nvme by the DLAMI (see infra/NOTES.md).
+  work_root: ${RITIM_WORK:-/opt/dlami/nvme/ritim/work}
+  models_root: ${RITIM_MODELS:-/opt/ritim/models}     # EBS cache, survives Spot interruption
+  envs_root: ${RITIM_ENVS:-/opt/ritim/envs}           # one venv per model family
+  repos_root: ${RITIM_REPOS:-/opt/ritim/repos}        # pinned git checkouts (CosyVoice, LatentSync, MuseTalk)
+  glossary_dir: glossary
+
+s3:
+  bucket: ${RITIM_S3_BUCKET:-ritim-videos}
+  region: ${AWS_REGION:-eu-central-1}
+  inputs_prefix: courses/        # courses/<course_id>/*.mp4 (+ course.yaml with title/description)
+  work_prefix: work/             # resumable work dirs, synced after every stage
+  outputs_prefix: outputs/       # outputs/<course_id>/<lesson>/hls/...
+  voice_prefix: voice/           # voice/hakan/reference.wav + reference.txt (never in git)
+
+source_language: tr
+
+# Order matters: this is the default list for `ritim run`. The pilot uses --lang en,de.
+languages:
+  en:
+    name: English
+    tts_backend: elevenlabs
+    lipsync: true
+    chars_per_second: 15.0       # speech-rate budget; QA reports the measured rate so this can be tuned
+    subtitle_line_chars: 42
+  de:
+    name: Deutsch
+    tts_backend: elevenlabs
+    lipsync: true
+    chars_per_second: 14.5
+    subtitle_line_chars: 42
+  fr:
+    name: Français
+    tts_backend: tbd             # decided by the blind test: qwen3tts | chatterbox | cosyvoice
+    lipsync: false
+    chars_per_second: 14.5
+    subtitle_line_chars: 42
+  es:
+    name: Español
+    tts_backend: tbd
+    lipsync: false
+    chars_per_second: 15.5
+    subtitle_line_chars: 42
+  ja:
+    name: 日本語
+    tts_backend: tbd
+    lipsync: false
+    chars_per_second: 8.0        # counted without spaces
+    subtitle_line_chars: 20
+  zh:
+    name: 中文
+    tts_backend: tbd
+    lipsync: false
+    chars_per_second: 5.5
+    subtitle_line_chars: 18
+
+inventory:
+  scene_threshold: 0.30          # ffmpeg scene score; slides change sharply so 0.3 is safe
+  scene_fps: 4
+  silence_db: -35
+  silence_min_s: 0.35
+  face_backend: mediapipe        # mediapipe | none
+  face_sample_fps: 1.0
+  large_face_min_height: 0.22    # face box height / frame height; PiP corner window is ~0.05-0.10
+  min_face_segment_s: 3.0
+
+chapters:
+  min_s: 180
+  target_s: 420
+  max_s: 600
+
+transcribe:
+  backend: whisperx              # whisperx | scribe | mock
+  env: audio
+  model: large-v3
+  compute_type: float16
+  batch_size: 16
+  vad_method: pyannote
+  align: true
+  initial_prompt: "VDA 6.3, IATF 16949, 8D, FMEA, APQP, PPAP, SPC, MSA, CQI-9, Ritim Yönetim."
+  scribe_model: scribe_v2
+  max_unit_s: 12.0               # sentences longer than this are split at the longest pause
+  unit_pause_s: 0.8              # a pause this long always ends a unit
+
+separate:
+  backend: demucs                # demucs | passthrough
+  env: audio
+  model: htdemucs
+  segment: 7                     # htdemucs max is 7.8 s
+  shifts: 1
+
+translate:
+  backend: anthropic             # anthropic | mock
+  model: claude-sonnet-5-5
+  effort: medium
+  max_tokens: 16000
+  http_retries: 5
+  validation_rounds: 2           # re-ask for ids that are missing, over budget or lost a protected term
+  fallbacks: default             # server-side refusal fallback ("default" | "none")
+  max_extend_s: 1.2              # a line may run this far into the following pause
+  budget_factor: 0.95
+  context_units: 4               # last translated lines of the previous chapter, for continuity
+
+voice:
+  sample_rate: 48000
+  max_tempo: 1.12                # speed-up we accept without asking for a shorter line
+  hard_max_tempo: 1.25
+  shorten_rounds: 2
+  min_gap_s: 0.06
+  tempo_filter: atempo           # atempo | rubberband (if ffmpeg has librubberband)
+  reference:
+    # Downloaded from s3://<bucket>/voice/hakan/ by `ritim fetch-voice`. Never commit.
+    audio: ${RITIM_MODELS:-/opt/ritim/models}/voice/hakan/reference.wav
+    text_file: ${RITIM_MODELS:-/opt/ritim/models}/voice/hakan/reference.txt
+    language: tr
+  elevenlabs:
+    voice_id: ${ELEVENLABS_VOICE_ID:-}      # professional voice clone of Hakan Bey
+    model_id: eleven_multilingual_v2
+    output_format: mp3_44100_192
+    send_language_code: false               # only some models accept language_code
+    stability: 0.5
+    similarity_boost: 0.8
+    style: 0.0
+    use_speaker_boost: true
+    concurrency: 3
+  qwen3tts:
+    env: qwen3tts
+    model: Qwen/Qwen3-TTS-12Hz-1.7B-Base
+    attn_implementation: sdpa               # flash_attention_2 if the wheel is installed
+  chatterbox:
+    env: chatterbox
+    model: ResembleAI/chatterbox
+    t3_model: v3
+    exaggeration: 0.5
+    cfg_weight: 0.3                         # README: lower cfg for cross-language reference
+  cosyvoice:
+    env: cosyvoice
+    model: FunAudioLLM/Fun-CosyVoice3-0.5B-2512
+    repo: CosyVoice
+
+lipsync:
+  backend: latentsync            # latentsync | musetalk | none
+  pad_s: 0.25
+  max_chunk_s: 40                # LatentSync reads a whole clip into RAM; keep chunks small
+  crop_scale: 2.2                # crop around the face (x face box) instead of feeding full frames
+  latentsync:
+    env: latentsync
+    repo: LatentSync
+    inference_steps: 20
+    guidance_scale: 1.5
+    deepcache: true
+  musetalk:
+    env: musetalk
+    repo: MuseTalk
+    bbox_shift: 0
+
+assemble:
+  background_gain_db: 0.0
+  loudness_i: -16.0              # EBU R128 measurement (loudnorm); use -23 for strict broadcast R128
+  loudness_tp: -1.5
+  loudness_lra: 11.0
+  hls_segment_s: 6
+  video_encoder: auto            # auto (h264_nvenc if present) | libx264 | h264_nvenc
+  video_quality: 23              # CRF for x264, CQ for NVENC
+  audio_bitrate: 128k
+  include_source_audio: true
+
+qa:
+  max_overlap_s: 0.05
+  max_drift_s: 0.6
+  max_tempo_warn: 1.15
+
+# Exact versions installed by infra/bootstrap.sh. Hugging Face revisions are resolved on the
+# first bootstrap and frozen in infra/models.lock.json (commit that file afterwards).
+models:
+  whisperx:        {pip: "whisperx==3.8.6", licence: BSD-2-Clause}
+  faster_whisper:  {hf: Systran/faster-whisper-large-v3, revision: main, licence: MIT}
+  align_tr:        {hf: mpoyraz/wav2vec2-xls-r-300m-cv7-turkish, revision: main, licence: verify-on-hf}
+  demucs:          {pip: "demucs==4.1.0", hf: adefossez/HTDemucs, revision: main, licence: MIT}
+  qwen3tts:        {pip: "qwen-tts==0.1.1", hf: Qwen/Qwen3-TTS-12Hz-1.7B-Base, revision: main, licence: Apache-2.0}
+  chatterbox:      {git: "https://github.com/resemble-ai/chatterbox", commit: 5de7a54aa4e5e2baadb0182dde554908b48b85c2, hf: ResembleAI/chatterbox, revision: main, licence: MIT}
+  cosyvoice:       {git: "https://github.com/FunAudioLLM/CosyVoice", commit: 074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc, hf: FunAudioLLM/Fun-CosyVoice3-0.5B-2512, revision: main, licence: Apache-2.0}
+  latentsync:      {git: "https://github.com/bytedance/LatentSync", commit: a229c3948406bc2cf6eaf4873e662e70c6a04746, hf: ByteDance/LatentSync-1.6, revision: main, licence: Apache-2.0}
+  sd_vae:          {hf: stabilityai/sd-vae-ft-mse, revision: main, licence: MIT}
+  musetalk:        {git: "https://github.com/TMElyralab/MuseTalk", commit: 0a89dec45a0192b824e3cf4daf96c239440c5ed8, hf: TMElyralab/MuseTalk, revision: main, licence: MIT}
+  mp_face:         {url: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", sha256: b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f, licence: Apache-2.0}

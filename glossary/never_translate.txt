@@ -1,0 +1,35 @@
+# Terms that stay exactly as written in every language (subtitles, dubbing and slides).
+# One term per line; matching is case-sensitive and ignores Turkish suffixes ("FMEA'da" -> FMEA).
+# Standards and methods
+VDA 6.3
+VDA 6.5
+VDA 6.1
+VDA 2
+VDA
+IATF 16949
+ISO 9001
+ISO 14001
+ISO 45001
+ISO 19011
+AS9100
+AS9145
+CQI-9
+CQI-11
+CQI-12
+CQI-15
+CQI-17
+CQI-23
+CQI-27
+AIAG
+APQP
+PPAP
+FMEA
+PFMEA
+DFMEA
+SPC
+MSA
+8D
+# Brands
+Ritim Online
+Ritim Yönetim
+Ritim
