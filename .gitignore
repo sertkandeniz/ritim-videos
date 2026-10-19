@@ -1,0 +1,29 @@
+# media and data never go in git (KVKK: voice and video are personal data)
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.aac
+*.srt
+*.vtt
+data/
+work/
+outputs/
+models/
+checkpoints/
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.onnx
+# python / env
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+!.env.example
