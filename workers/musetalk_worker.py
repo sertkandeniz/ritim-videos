@@ -6,6 +6,7 @@ MuseTalk's own CLI already processes many tasks per model load, so we hand it on
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
@@ -44,8 +45,6 @@ def main() -> None:
                 results[it["id"]] = {}
             else:
                 results[it["id"]] = {"error": f"MuseTalk wrote no {produced}"}
-    import json
-
     job_path.with_name(job_path.stem + ".result.json").write_text(json.dumps({"items": results}, indent=1))
     if any("error" in r for r in results.values()):
         sys.exit(3)

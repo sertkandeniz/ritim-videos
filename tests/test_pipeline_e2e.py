@@ -160,6 +160,7 @@ def test_qa_report(course: Course) -> None:
     assert report["languages"]["de"]["measured_chars_per_second"] > 0
     assert report["cost"]["video_hours"] == pytest.approx(0.01, abs=0.001)
     assert "voice:de" in report["cost"]["stages"]
+    assert report["cost"]["estimated_usd"]["tts_characters"] > 0
     assert (course.cd.qa_dir / "report.html").read_text().startswith("<!doctype html>")
 
 

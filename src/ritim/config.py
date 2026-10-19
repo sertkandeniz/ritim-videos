@@ -217,6 +217,14 @@ class QACfg(_Model):
     max_tempo_warn: float = 1.15
 
 
+class CostsCfg(_Model):
+    gpu_hour_usd: float = 0.0
+    claude_input_per_mtok_usd: float = 2.0
+    claude_output_per_mtok_usd: float = 10.0
+    claude_cache_read_per_mtok_usd: float = 0.2
+    elevenlabs_per_1k_chars_usd: float = 0.0
+
+
 class Config(_Model):
     paths: PathsCfg
     s3: S3Cfg
@@ -231,6 +239,7 @@ class Config(_Model):
     lipsync: LipsyncCfg = Field(default_factory=LipsyncCfg)
     assemble: AssembleCfg = Field(default_factory=AssembleCfg)
     qa: QACfg = Field(default_factory=QACfg)
+    costs: CostsCfg = Field(default_factory=CostsCfg)
     models: dict[str, Any] = Field(default_factory=dict)
 
     def glossary_path(self) -> Path:

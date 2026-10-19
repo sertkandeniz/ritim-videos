@@ -63,6 +63,8 @@ def run_qa(ctx: Ctx) -> dict[str, Any]:
                     flag("warn", lang, where, "drift", f"{drift:.2f}s late against the original")
                 if u["placed_end"] > u["slot_end"] + 0.05:
                     flag("warn", lang, where, "overflow", f"runs {u['placed_end'] - u['slot_end']:.2f}s past slot")
+                if u["raw_s"] < 0.15:
+                    flag("error", lang, where, "empty-take", "TTS returned (almost) no speech")
                 if u["tempo"] > q.max_tempo_warn:
                     flag("info", lang, where, "tempo", f"sped up x{u['tempo']:.2f}")
                 if u["placed_end"] > ch.duration + 0.01:
@@ -102,7 +104,9 @@ def run_qa(ctx: Ctx) -> dict[str, Any]:
             if not k.startswith("gpu_util") and not k.startswith("gpu_mem"):
                 st[k] += v
     gpu_h = sum(st.get("gpu_seconds", 0.0) for st in by_stage.values()) / 3600
+    usd = estimate_usd(ctx, by_stage, gpu_h)
     cost = {
+        "estimated_usd": usd,
         "video_hours": round(video_h, 3),
         "gpu_hours": round(gpu_h, 3),
         "gpu_hours_per_video_hour": round(gpu_h / video_h, 3) if video_h else None,
@@ -126,6 +130,28 @@ def run_qa(ctx: Ctx) -> dict[str, Any]:
     return report
 
 
+def estimate_usd(ctx: Ctx, by_stage: dict[str, dict[str, float]], gpu_h: float) -> dict[str, float]:
+    """Rough spend from recorded usage and the `costs` rates (translation tokens incl. shortening)."""
+    c = ctx.cfg.costs
+    tokens: dict[str, float] = defaultdict(float)
+    chars = 0.0
+    for stage, st in by_stage.items():
+        for k, v in st.items():
+            key = k.removeprefix("llm_")
+            if key in ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"):
+                tokens[key] += v
+        if stage.startswith("voice:") and "characters" in st:
+            chars += st["characters"]
+    claude = (tokens["input_tokens"] * c.claude_input_per_mtok_usd
+              + tokens["cache_creation_input_tokens"] * c.claude_input_per_mtok_usd * 1.25
+              + tokens["cache_read_input_tokens"] * c.claude_cache_read_per_mtok_usd
+              + tokens["output_tokens"] * c.claude_output_per_mtok_usd) / 1e6
+    out = {"gpu": round(gpu_h * c.gpu_hour_usd, 2), "claude": round(claude, 2),
+           "tts_characters": chars, "elevenlabs": round(chars / 1000 * c.elevenlabs_per_1k_chars_usd, 2)}
+    out["total"] = round(out["gpu"] + out["claude"] + out["elevenlabs"], 2)
+    return out
+
+
 def _html(report: dict[str, Any]) -> str:
     e = html.escape
     rows = "".join(
@@ -144,7 +170,8 @@ tr.error td{{background:#fde8e8}}tr.warn td{{background:#fff6dd}}code{{font-size
 <h1>QA report: {e(report['title'])}</h1>
 <p>Errors {report['counts']['error']} · warnings {report['counts']['warn']} · info {report['counts']['info']}</p>
 <h2>Cost and time</h2><p>Video {c['video_hours']} h · GPU {c['gpu_hours']} h ·
-GPU-h per video-h {c['gpu_hours_per_video_hour']} · wall {c['wall_hours']} h</p>
+GPU-h per video-h {c['gpu_hours_per_video_hour']} · wall {c['wall_hours']} h ·
+estimated cost <code>{e(str(c['estimated_usd']))}</code></p>
 <table><tr><th>stage</th><th>totals</th></tr>{stages}</table>
 <h2>Languages</h2><table>{langs}</table>
 <h2>Issues</h2><table><tr><th>severity</th><th>lang</th><th>where</th><th>kind</th><th>detail</th></tr>{rows}</table>

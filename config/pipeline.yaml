@@ -175,6 +175,14 @@ qa:
   max_drift_s: 0.6
   max_tempo_warn: 1.15
 
+# Rates for the cost estimate in the QA report. Set them to what you actually pay (credits still count).
+costs:
+  gpu_hour_usd: 0.0              # g6e.xlarge on-demand or Spot price in your region
+  claude_input_per_mtok_usd: 2.0     # claude-sonnet-5-5
+  claude_output_per_mtok_usd: 10.0
+  claude_cache_read_per_mtok_usd: 0.2
+  elevenlabs_per_1k_chars_usd: 0.0   # covered by the startup grant; set to your plan's overage rate
+
 # Exact versions installed by infra/bootstrap.sh (envs) and infra/fetch_models.py (weights).
 # Code is pinned here (pip ==, git commit). Hugging Face weights are pinned by commit sha in
 # infra/models.lock.json: the first bootstrap resolves `revision` and writes the lock; commit it,

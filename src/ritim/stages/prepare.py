@@ -10,7 +10,7 @@ import yaml
 
 from .. import media
 from ..backends.faces import make_face_detector
-from ..manifest import Lesson, Timer, read_json, write_json
+from ..manifest import Chapter, Lesson, Timer, read_json, write_json
 from ..planning import FaceSegment, large_face_segments, plan_chapters
 from .base import Ctx, log
 
@@ -108,8 +108,6 @@ def run_chapters(ctx: Ctx) -> None:
                 inv = read_json(ctx.cd.inventory(lesson.id))
                 bounds = plan_chapters(lesson.duration, [tuple(s) for s in inv["silences"]], inv["scenes"],
                                        c.min_s, c.target_s, c.max_s, inv.get("large_face_segments", []))
-                from ..manifest import Chapter
-
                 for i, (a, b) in enumerate(bounds, 1):
                     m.chapters.append(Chapter(id=f"{lesson.id}-C{i:03d}", lesson_id=lesson.id, index=i,
                                               start=a, end=b))
