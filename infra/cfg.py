@@ -1,6 +1,6 @@
 """Tiny config reader for bootstrap.sh: prints install specs from config/pipeline.yaml.
 
-  cfg.py pip <env>   -> space-separated pip requirement specs
+  cfg.py pip <env>   -> pip requirement specs, one per line
   cfg.py git <env>   -> "<url> <commit>"
 """
 
@@ -18,7 +18,7 @@ def main(argv: list[str]) -> int:
     kind, env = argv[1], argv[2]
     spec = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["models"]["envs"][env]
     if kind == "pip":
-        print(" ".join(spec.get("pip", [])))
+        print("\n".join(spec.get("pip", [])))
     elif kind == "git":
         print(spec["git"], spec["commit"])
     else:

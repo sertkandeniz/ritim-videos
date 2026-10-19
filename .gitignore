@@ -34,3 +34,6 @@ __pycache__/
 # local blind-test keys and rating returns
 *.key.json
 ratings_*.csv
+*.tflite
+*.task
+tests/data/

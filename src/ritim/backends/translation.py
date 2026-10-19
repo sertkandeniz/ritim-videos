@@ -177,7 +177,7 @@ so that consecutive lines read naturally together; do not move content between l
 
 @dataclass
 class MockTranslator:
-    """Deterministic stand-in: '<lang>: <source>' cut to max_chars, keeping protected terms first."""
+    """Deterministic stand-in: '<lang>: <terms> <source>' cut to max_chars; glossary terms come first."""
 
     glossary: Glossary
     name: str = "mock"
@@ -186,6 +186,7 @@ class MockTranslator:
 
     def _render(self, lang: str, line: LineIn) -> str:
         terms = self.glossary.protected_in(line.text)
+        terms += [t.targets[lang] for t in self.glossary.terms_in(line.text) if lang in t.targets]
         body = f"{lang}: {' '.join(terms)} {line.text}".strip()
         out = ""
         for word in body.split():

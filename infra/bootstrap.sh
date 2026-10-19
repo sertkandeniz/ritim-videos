@@ -83,7 +83,7 @@ step_storage() {
 step_base() {
   log "base env (orchestrator: ritim CLI, MediaPipe, boto3, anthropic, huggingface_hub)"
   new_env base 3.12
-  uv pip install --python "$RITIM_ENVS/base/bin/python" -e "$REPO[vision,dev]" "huggingface_hub>=0.30" gdown
+  uv pip install --python "$RITIM_ENVS/base/bin/python" -e "${REPO}[vision,dev]" "huggingface_hub>=0.30" gdown
   $SUDO ln -sf "$RITIM_ENVS/base/bin/ritim" /usr/local/bin/ritim
   mark_done base
 }
@@ -94,8 +94,9 @@ step_audio() {
   new_env audio 3.12
   local py="$RITIM_ENVS/audio/bin/python"
   uv pip install --python "$py" --index-url "$TORCH_INDEX_CU128" torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0
+  local specs; mapfile -t specs < <(cfg pip audio)
   uv pip install --python "$py" --extra-index-url "$TORCH_INDEX_CU128" --index-strategy unsafe-best-match \
-    "torch==2.8.0" $(cfg pip audio) "numba>=0.68" soundfile
+    "torch==2.8.0" "${specs[@]}" "numba>=0.68" soundfile
   mark_done audio
 }
 
@@ -105,8 +106,9 @@ step_qwen3tts() {
   new_env qwen3tts 3.12
   local py="$RITIM_ENVS/qwen3tts/bin/python"
   uv pip install --python "$py" --index-url "$TORCH_INDEX_CU128" torch==2.8.0 torchaudio==2.8.0
+  local specs; mapfile -t specs < <(cfg pip qwen3tts)
   uv pip install --python "$py" --extra-index-url "$TORCH_INDEX_CU128" --index-strategy unsafe-best-match \
-    "torch==2.8.0" $(cfg pip qwen3tts) soundfile
+    "torch==2.8.0" "${specs[@]}" soundfile
   # Optional: FlashAttention 2 (compiles ~1 h on 4 vCPU). Then set voice.qwen3tts.attn_implementation.
   if [ "${INSTALL_FLASH_ATTN:-0}" = 1 ]; then
     MAX_JOBS=4 uv pip install --python "$py" --no-build-isolation flash-attn
@@ -172,8 +174,9 @@ step_musetalk() {
 
 step_models() {
   log "model weights (pinned by infra/models.lock.json)"
-  local envs; envs=$(ls "$RITIM_ENVS" | grep -v -E '^\.|\.txt$' | paste -sd, -)
-  HF_HUB_OFFLINE=0 "$RITIM_ENVS/base/bin/python" "$REPO/infra/fetch_models.py" --envs "base,$envs"
+  local envs="base" d
+  for d in "$RITIM_ENVS"/*/; do envs="$envs,$(basename "$d")"; done
+  HF_HUB_OFFLINE=0 "$RITIM_ENVS/base/bin/python" "$REPO/infra/fetch_models.py" --envs "$envs"
 }
 
 step_verify() {

@@ -174,7 +174,7 @@ def parse_playlist(path: Path) -> list[tuple[float, str]]:
 def first_pts(ts: Path, stream: str = "v:0") -> float:
     out = media.run([media.FFPROBE, "-v", "error", "-select_streams", stream, "-show_entries",
                      "packet=pts_time", "-read_intervals", "%+#1", "-of", "csv=p=0", ts]).stdout.split()
-    return float(out[0]) if out else 0.0
+    return float(out[0].strip(",")) if out else 0.0
 
 
 def write_playlist(path: Path, segs: list[tuple[float, str]]) -> None:
