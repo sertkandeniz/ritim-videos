@@ -109,7 +109,7 @@ def detect_scenes(path: Path, threshold: float, fps: float) -> list[float]:
 def iter_frames(path: Path, fps: float, width: int = 640) -> Iterator[tuple[float, np.ndarray]]:
     """Yield (timestamp, RGB frame) at `fps`, scaled to `width`, streamed through a pipe."""
     p = probe(path)
-    height = int(round(p.height * width / p.width / 2)) * 2 if p.width else width
+    height = round(p.height * width / p.width / 2) * 2 if p.width else width
     cmd = [FFMPEG, "-hide_banner", "-nostdin", "-loglevel", "error", "-i", str(path), "-an",
            "-vf", f"fps={fps},scale={width}:{height}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)

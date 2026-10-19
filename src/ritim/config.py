@@ -104,7 +104,7 @@ class SeparateCfg(_Model):
     backend: Literal["demucs", "passthrough"] = "demucs"
     env: str = "audio"
     model: str = "htdemucs"
-    segment: float = 7
+    segment: int = 7  # demucs takes whole seconds; htdemucs max is 7.8
     shifts: int = 1
 
 
@@ -231,7 +231,7 @@ class Config(_Model):
     lipsync: LipsyncCfg = Field(default_factory=LipsyncCfg)
     assemble: AssembleCfg = Field(default_factory=AssembleCfg)
     qa: QACfg = Field(default_factory=QACfg)
-    models: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    models: dict[str, Any] = Field(default_factory=dict)
 
     def glossary_path(self) -> Path:
         p = self.paths.glossary_dir

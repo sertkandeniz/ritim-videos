@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
 
 from .timing import CJK_LANGS
@@ -85,14 +86,14 @@ def make_cues(units: list[dict[str, object]], lang: str, line_chars: int, max_li
             cues.append(Cue(t, chunk_end, "\n".join(_balance(chunk, line_chars, lang))))
             t = chunk_end
     cues.sort(key=lambda c: c.start)
-    for a, b in zip(cues, cues[1:], strict=False):
+    for a, b in itertools.pairwise(cues):
         if a.end > b.start - gap:
             a.end = max(a.start + 0.2, b.start - gap)
     return cues
 
 
 def _ts(seconds: float, sep: str) -> str:
-    ms = int(round(max(0.0, seconds) * 1000))
+    ms = round(max(0.0, seconds) * 1000)
     h, rem = divmod(ms, 3_600_000)
     m, rem = divmod(rem, 60_000)
     s, ms = divmod(rem, 1000)

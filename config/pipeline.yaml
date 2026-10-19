@@ -175,17 +175,41 @@ qa:
   max_drift_s: 0.6
   max_tempo_warn: 1.15
 
-# Exact versions installed by infra/bootstrap.sh. Hugging Face revisions are resolved on the
-# first bootstrap and frozen in infra/models.lock.json (commit that file afterwards).
+# Exact versions installed by infra/bootstrap.sh (envs) and infra/fetch_models.py (weights).
+# Code is pinned here (pip ==, git commit). Hugging Face weights are pinned by commit sha in
+# infra/models.lock.json: the first bootstrap resolves `revision` and writes the lock; commit it,
+# and every later bootstrap installs exactly those shas. `dest: cache` = HF cache under
+# <models_root>/hf (libraries load by repo name, offline); `dest: <dir>` = plain folder under models_root.
 models:
-  whisperx:        {pip: "whisperx==3.8.6", licence: BSD-2-Clause}
-  faster_whisper:  {hf: Systran/faster-whisper-large-v3, revision: main, licence: MIT}
-  align_tr:        {hf: mpoyraz/wav2vec2-xls-r-300m-cv7-turkish, revision: main, licence: verify-on-hf}
-  demucs:          {pip: "demucs==4.1.0", hf: adefossez/HTDemucs, revision: main, licence: MIT}
-  qwen3tts:        {pip: "qwen-tts==0.1.1", hf: Qwen/Qwen3-TTS-12Hz-1.7B-Base, revision: main, licence: Apache-2.0}
-  chatterbox:      {git: "https://github.com/resemble-ai/chatterbox", commit: 5de7a54aa4e5e2baadb0182dde554908b48b85c2, hf: ResembleAI/chatterbox, revision: main, licence: MIT}
-  cosyvoice:       {git: "https://github.com/FunAudioLLM/CosyVoice", commit: 074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc, hf: FunAudioLLM/Fun-CosyVoice3-0.5B-2512, revision: main, licence: Apache-2.0}
-  latentsync:      {git: "https://github.com/bytedance/LatentSync", commit: a229c3948406bc2cf6eaf4873e662e70c6a04746, hf: ByteDance/LatentSync-1.6, revision: main, licence: Apache-2.0}
-  sd_vae:          {hf: stabilityai/sd-vae-ft-mse, revision: main, licence: MIT}
-  musetalk:        {git: "https://github.com/TMElyralab/MuseTalk", commit: 0a89dec45a0192b824e3cf4daf96c239440c5ed8, hf: TMElyralab/MuseTalk, revision: main, licence: MIT}
-  mp_face:         {url: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", sha256: b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f, licence: Apache-2.0}
+  envs:
+    audio:      {python: "3.12", pip: ["whisperx==3.8.6", "demucs==4.1.0"], torch: "2.8.0", cuda: cu128}
+    qwen3tts:   {python: "3.12", pip: ["qwen-tts==0.1.1"], torch: "2.8.0", cuda: cu128}
+    chatterbox: {python: "3.11", git: "https://github.com/resemble-ai/chatterbox", commit: 5de7a54aa4e5e2baadb0182dde554908b48b85c2}
+    cosyvoice:  {python: "3.10", git: "https://github.com/FunAudioLLM/CosyVoice", commit: 074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc}
+    latentsync: {python: "3.10.13", git: "https://github.com/bytedance/LatentSync", commit: a229c3948406bc2cf6eaf4873e662e70c6a04746}
+    musetalk:   {python: "3.10", git: "https://github.com/TMElyralab/MuseTalk", commit: 0a89dec45a0192b824e3cf4daf96c239440c5ed8}
+  weights:
+    - {name: faster-whisper-large-v3, hf: Systran/faster-whisper-large-v3, revision: main, dest: "cache:whisper", licence: MIT, env: audio}
+    - {name: align-tr, hf: mpoyraz/wav2vec2-xls-r-300m-cv7-turkish, revision: main, dest: cache, licence: check-model-card, env: audio}
+    - {name: htdemucs, hf: adefossez/HTDemucs, revision: main, dest: cache, licence: MIT, env: audio}
+    - {name: qwen3-tts-base, hf: Qwen/Qwen3-TTS-12Hz-1.7B-Base, revision: main, dest: cache, licence: Apache-2.0, env: qwen3tts}
+    - {name: chatterbox-mtl, hf: ResembleAI/chatterbox, revision: main, dest: cache, licence: MIT, env: chatterbox,
+       files: [ve.pt, t3_mtl23ls_v3.safetensors, s3gen.pt, grapheme_mtl_merged_expanded_v1.json, conds.pt, Cangjie5_TC.json]}
+    - {name: cosyvoice3, hf: FunAudioLLM/Fun-CosyVoice3-0.5B-2512, revision: main, dest: cosyvoice/Fun-CosyVoice3-0.5B-2512, licence: Apache-2.0, env: cosyvoice}
+    - {name: latentsync-1.6, hf: ByteDance/LatentSync-1.6, revision: main, dest: latentsync, licence: Apache-2.0, env: latentsync,
+       files: [latentsync_unet.pt, whisper/tiny.pt]}
+    - {name: sd-vae-ft-mse, hf: stabilityai/sd-vae-ft-mse, revision: main, dest: cache, licence: MIT, env: latentsync,
+       files: [config.json, diffusion_pytorch_model.safetensors]}
+    - {name: musetalk-1.5, hf: TMElyralab/MuseTalk, revision: main, dest: musetalk, licence: MIT, env: musetalk,
+       files: [musetalkV15/musetalk.json, musetalkV15/unet.pth]}
+    - {name: musetalk-sd-vae, hf: stabilityai/sd-vae-ft-mse, revision: main, dest: musetalk/sd-vae, licence: MIT, env: musetalk,
+       files: [config.json, diffusion_pytorch_model.bin]}
+    - {name: musetalk-whisper-tiny, hf: openai/whisper-tiny, revision: main, dest: musetalk/whisper, licence: Apache-2.0, env: musetalk,
+       files: [config.json, pytorch_model.bin, preprocessor_config.json]}
+    - {name: musetalk-dwpose, hf: yzd-v/DWPose, revision: main, dest: musetalk/dwpose, licence: Apache-2.0, env: musetalk,
+       files: [dw-ll_ucoco_384.pth]}
+    - {name: musetalk-face-parse-resnet18, url: "https://download.pytorch.org/models/resnet18-5c106cde.pth", dest: musetalk/face-parse-bisent/resnet18-5c106cde.pth, licence: BSD-3-Clause, env: musetalk}
+    - {name: musetalk-face-parse, gdrive: 154JgKpzCPW82qINcVieuPH3fZ2e0P812, dest: musetalk/face-parse-bisent/79999_iter.pth, licence: MIT, env: musetalk}
+    - {name: musetalk-s3fd, url: "https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth", dest: torch/hub/checkpoints/s3fd-619a316812.pth, licence: BSD-3-Clause (face-alignment), env: musetalk}
+    - {name: mediapipe-blazeface, url: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+       sha256: b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f, dest: mediapipe/blaze_face_short_range.tflite, licence: Apache-2.0, env: base}

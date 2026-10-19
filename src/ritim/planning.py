@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from typing import Any, TypedDict
 
 
@@ -91,4 +92,4 @@ def plan_chapters(duration: float, silences: list[tuple[float, float]], scenes: 
         if duration - prev <= max_s * 1.25:
             cuts.pop()
     bounds = [0.0, *cuts, round(duration, 3)]
-    return list(zip(bounds[:-1], bounds[1:], strict=True))
+    return list(itertools.pairwise(bounds))

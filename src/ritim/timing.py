@@ -25,7 +25,7 @@ def assign_slots(units: list[dict[str, Any]], chapter_duration: float, max_exten
 
 
 def char_budget(unit: dict[str, Any], cps: float, factor: float) -> int:
-    return max(4, math.floor(cps * (unit["slot_end"] - unit["start"]) * factor))
+    return max(4, math.floor(cps * (float(unit["slot_end"]) - float(unit["start"])) * factor))
 
 
 @dataclass
