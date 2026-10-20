@@ -1,11 +1,14 @@
-# Infrastructure notes: g6e.xlarge
+# Infrastructure notes: single-GPU instance (g6.2xlarge or g6e.xlarge)
 
-| | g6e.xlarge |
-|---|---|
-| GPU | 1x NVIDIA L40S, 48 GB, Ada (sm_89), NVENC x3 |
-| CPU / RAM | 4 vCPU / 32 GiB |
-| Instance store | 1x 250 GB NVMe SSD (ephemeral) |
-| AMI | Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 24.04). Driver + CUDA toolkits only; each model family gets its own uv env, so the PyTorch DLAMI variants are not needed. |
+| | g6.2xlarge (in use, eu-north-1) | g6e.xlarge (original plan) |
+|---|---|---|
+| GPU | 1x NVIDIA L4, 24 GB, Ada (sm_89), NVENC | 1x NVIDIA L40S, 48 GB, Ada (sm_89), NVENC |
+| CPU / RAM | 8 vCPU / 32 GiB | 4 vCPU / 32 GiB |
+| Instance store | ~450 GB NVMe SSD (ephemeral) | 250 GB NVMe SSD (ephemeral) |
+| AMI | Deep Learning AMI with the NVIDIA driver, Ubuntu 24.04 or Amazon Linux 2023 (the PyTorch variant is fine; its PyTorch is not used, every model family gets its own uv env). | same |
+
+24 GB is enough because only one model is loaded at a time; the largest, LatentSync 1.6, needs 18 GB.
+On the L4 lip sync is roughly 2x slower than on the L40S (estimate; the pilot measures it).
 
 ## Storage: instance store vs EBS
 

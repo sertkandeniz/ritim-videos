@@ -22,6 +22,13 @@ Conventions: `$BUCKET` is the S3 bucket (default `ritim-videos`, eu-central-1), 
 
 ## 1. Launch the instance
 
+Tested choice: **g6.2xlarge** (NVIDIA L4 24 GB, 8 vCPU, 32 GiB, ~450 GB NVMe) in **eu-north-1 (Stockholm)**,
+where GPU capacity is easier to get than in Frankfurt. g6e.xlarge (L40S 48 GB) also works and is faster for
+lip sync. Root volume: 250 GiB gp3, encrypted, "Delete on termination" off. Either AMI family works:
+*Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 24.04)* (login `ubuntu`) or
+*Deep Learning OSS Nvidia Driver AMI GPU PyTorch (Amazon Linux 2023)* (login `ec2-user`); the bootstrap
+detects the OS. The S3 bucket can stay in another region; set `RITIM_S3_REGION` to the bucket's region.
+
 ```bash
 REGION=eu-central-1
 AMI=$(aws ec2 describe-images --region $REGION --owners amazon \
@@ -43,14 +50,16 @@ aws ec2 run-instances --region $REGION --image-id "$AMI" --instance-type g6e.xla
 ## 2. Bootstrap (one script, ~45-70 min the first time)
 
 ```bash
-ssh ubuntu@<ip>
+ssh ec2-user@<ip>        # or ubuntu@<ip> on the Ubuntu AMI
+sudo dnf install -y git  # Amazon Linux only, if git is missing
 git clone https://github.com/sertkandeniz/ritim-videos.git && cd ritim-videos
 cp .env.example .env && nano .env          # API keys, voice id, bucket
 tmux new -s boot
 infra/bootstrap.sh                          # system, storage, base, all envs, model weights, verify
 ```
 
-What it does: apt packages (ffmpeg, sox, EGL for MediaPipe), uv, mounts the instance-store NVMe at
+What it does: system packages (apt on Ubuntu; dnf plus a static FFmpeg 8.1 build on Amazon Linux,
+which has no ffmpeg package), uv, mounts the instance-store NVMe at
 `/opt/dlami/nvme`, one virtualenv per model family under `/opt/ritim/envs` (`base`, `audio`, `qwen3tts`,
 `chatterbox`, `cosyvoice`, `latentsync`, `musetalk`), pinned git checkouts under `/opt/ritim/repos`, the
 LatentSync InsightFace replacement, then every weight from `config/pipeline.yaml` into `/opt/ritim/models`,

@@ -12,7 +12,7 @@ paths:
 
 s3:
   bucket: ${RITIM_S3_BUCKET:-ritim-videos}
-  region: ${AWS_REGION:-eu-central-1}
+  region: ${RITIM_S3_REGION:-eu-central-1}   # the bucket's region (the instance may run elsewhere)
   inputs_prefix: courses/        # courses/<course_id>/*.mp4 (+ course.yaml with title/description)
   work_prefix: work/             # resumable work dirs, synced after every stage
   outputs_prefix: outputs/       # outputs/<course_id>/<lesson>/hls/...

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# One-shot setup of a g6e.xlarge (1x L40S 48 GB, 4 vCPU, 32 GiB) on the AWS Deep Learning Base
-# OSS Nvidia Driver GPU AMI (Ubuntu 24.04). Idempotent: re-running skips finished steps.
+# One-shot setup of a single-GPU instance (g6.2xlarge: L4 24 GB, 8 vCPU, 32 GiB; or g6e.xlarge: L40S 48 GB)
+# on an AWS Deep Learning AMI with the NVIDIA driver: Ubuntu 24.04 or Amazon Linux 2023 (incl. the
+# "OSS Nvidia Driver AMI GPU PyTorch" variants; their bundled PyTorch is not used, every model gets its own
+# uv env). Idempotent: re-running skips finished steps.
 #
 #   infra/bootstrap.sh                 # everything the config needs (system, storage, all envs, models, verify)
 #   infra/bootstrap.sh audio models    # just some steps
@@ -21,11 +23,16 @@ export RITIM_WORK="${RITIM_WORK:-/opt/dlami/nvme/ritim/work}"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-/opt/ritim/uv-cache}"   # same filesystem as envs -> hardlinks
 export UV_LINK_MODE=hardlink
 export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-/opt/ritim/python}"
+export UV_PYTHON_PREFERENCE=only-managed   # never build envs on the AMI's own (conda/venv) Python
 export HF_HOME="$RITIM_MODELS/hf"
 export TORCH_HOME="$RITIM_MODELS/torch"
 UV_VERSION="0.11.32"  # the version this repo was developed with
 TORCH_INDEX_CU128="https://download.pytorch.org/whl/cu128"
 TORCH_INDEX_CU118="https://download.pytorch.org/whl/cu118"
+# Static FFmpeg for Amazon Linux (no ffmpeg package there): BtbN GPL build, release branch 8.1
+# (libx264, NVENC, rubberband, loudnorm). The test suite passes with it.
+FFMPEG_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz"
+OS_ID=$(. /etc/os-release && echo "$ID")
 
 SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
 log() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
@@ -47,23 +54,47 @@ new_env() {  # name python [--seed]
   [ -x "$RITIM_ENVS/$1/bin/python" ] || uv venv --python "$2" ${3:-} "$RITIM_ENVS/$1"
 }
 
+install_ffmpeg_static() {
+  if command -v ffmpeg >/dev/null && ffmpeg -hide_banner -version | head -1 | grep -q "version n8.1"; then return; fi
+  local tmp; tmp=$(mktemp -d)
+  curl -fsSL -o "$tmp/ffmpeg.tar.xz" "$FFMPEG_URL"
+  $SUDO mkdir -p /opt/ritim/ffmpeg
+  $SUDO tar xf "$tmp/ffmpeg.tar.xz" -C /opt/ritim/ffmpeg --strip-components=1
+  $SUDO ln -sf /opt/ritim/ffmpeg/bin/ffmpeg /opt/ritim/ffmpeg/bin/ffprobe /usr/local/bin/
+  rm -rf "$tmp"
+}
+
 step_system() {
-  log "system packages"
-  $SUDO apt-get update -q
-  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
-    ffmpeg sox libsox-dev libgl1 libegl1 libgles2 libglib2.0-0 git git-lfs build-essential \
-    pkg-config curl unzip jq nvme-cli awscli || \
-  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
-    ffmpeg sox libsox-dev libgl1 libegl1 libgles2 libglib2.0-0 git git-lfs build-essential pkg-config curl unzip jq nvme-cli
+  log "system packages ($OS_ID)"
+  case "$OS_ID" in
+    ubuntu|debian)
+      $SUDO apt-get update -q
+      $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+        ffmpeg sox libsox-dev libgl1 libegl1 libgles2 libglib2.0-0 git git-lfs build-essential \
+        pkg-config curl unzip jq nvme-cli awscli || \
+      $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+        ffmpeg sox libsox-dev libgl1 libegl1 libgles2 libglib2.0-0 git git-lfs build-essential pkg-config curl unzip jq nvme-cli
+      ;;
+    amzn)
+      # strict=0: skip names a given AL2023 release does not ship instead of failing the whole install.
+      $SUDO dnf install -y -q --setopt=strict=0 \
+        git git-lfs gcc gcc-c++ make pkgconf-pkg-config tar xz unzip jq nvme-cli e2fsprogs \
+        mesa-libGL mesa-libEGL libglvnd-egl libglvnd-gles glib2 libsndfile sox sox-devel
+      install_ffmpeg_static
+      ;;
+    *) echo "unsupported OS '$OS_ID' (use the Ubuntu 24.04 or Amazon Linux 2023 Deep Learning AMI)"; exit 1 ;;
+  esac
   if ! command -v uv >/dev/null || [ "$(uv --version | awk '{print $2}')" != "$UV_VERSION" ]; then
-    curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" | env UV_INSTALL_DIR=/usr/local/bin $SUDO sh
+    curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" | $SUDO env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
   fi
   $SUDO mkdir -p "$RITIM_ENVS" "$RITIM_REPOS" "$RITIM_MODELS" "$UV_CACHE_DIR" "$UV_PYTHON_INSTALL_DIR"
   $SUDO chown -R "$(id -u):$(id -g)" /opt/ritim
+  ffmpeg -hide_banner -version | head -1
 }
 
 step_storage() {
-  # The DLAMI mounts the g6e instance-store NVMe (250 GB on xlarge) at /opt/dlami/nvme.
+  # The DLAMI (Ubuntu and AL2023) mounts the instance-store NVMe at /opt/dlami/nvme
+  # (g6.2xlarge: ~450 GB, g6e.xlarge: 250 GB).
   # If it is not mounted (other AMI), format and mount the first empty instance-store disk.
   log "instance store"
   if ! mountpoint -q /opt/dlami/nvme; then
