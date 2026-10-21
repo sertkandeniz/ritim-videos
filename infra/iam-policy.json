@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListOwnPrefixes",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::RITIM_BUCKET",
+      "Condition": {"StringLike": {"s3:prefix": ["courses/*", "work/*", "outputs/*", "voice/*", "courses/", "work/", "outputs/", "voice/"]}}
+    },
+    {
+      "Sid": "ReadInputsAndVoice",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": ["arn:aws:s3:::RITIM_BUCKET/courses/*", "arn:aws:s3:::RITIM_BUCKET/voice/*"]
+    },
+    {
+      "Sid": "ReadWriteWorkAndOutputs",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"],
+      "Resource": ["arn:aws:s3:::RITIM_BUCKET/work/*", "arn:aws:s3:::RITIM_BUCKET/outputs/*"]
+    }
+  ]
+}

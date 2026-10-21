@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg libegl1 libgles2 shellcheck
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+      - name: Install
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python -e ".[dev,vision]"
+      - name: Lint
+        run: |
+          .venv/bin/ruff check src workers infra tests
+          shellcheck -S warning infra/bootstrap.sh
+      - name: Types
+        run: .venv/bin/mypy
+      - name: Tests (CPU only, mocked models and APIs)
+        run: .venv/bin/pytest -q
+      - name: No media, weights or secrets in the tree
+        run: |
+          ! git ls-files | grep -E -i '\.(mp4|mov|mkv|webm|wav|mp3|m4a|flac|aac|srt|vtt|safetensors|pt|pth|ckpt|onnx|tflite)$'
+          ! git ls-files | grep -E '(^|/)\.env$'

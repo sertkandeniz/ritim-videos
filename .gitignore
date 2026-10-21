@@ -27,3 +27,13 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
+# local blind-test keys and rating returns
+*.key.json
+ratings_*.csv
+*.tflite
+*.task
+tests/data/
